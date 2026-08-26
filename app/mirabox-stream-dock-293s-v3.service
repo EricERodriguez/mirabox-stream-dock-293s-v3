@@ -1,0 +1,13 @@
+[Unit]
+Description=Mirabox Stream Dock 293S V3 bridge
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=@APP_HOME@/venv/bin/python @APP_HOME@/app/daemon.py
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

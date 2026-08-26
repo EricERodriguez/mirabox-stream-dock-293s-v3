@@ -1,0 +1,2 @@
+# Mirabox Stream Dock 293S V3 (USB 6603:1014) — permission rule only.
+KERNEL=="hidraw*", ATTRS{idVendor}=="6603", ATTRS{idProduct}=="1014", MODE="0660", GROUP="plugdev", TAG+="uaccess"

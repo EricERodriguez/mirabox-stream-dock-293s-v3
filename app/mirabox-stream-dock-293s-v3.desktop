@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Mirabox Stream Dock 293S V3
+Comment=Configure buttons and right-side LCD displays
+Exec=@APP_HOME@/launch-editor.sh
+Icon=@APP_HOME@/assets/mirabox-stream-dock-293s-v3.svg
+Terminal=false
+Categories=Settings;Utility;
+Keywords=Mirabox;Stream Dock;293S;LCD;
