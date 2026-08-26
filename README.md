@@ -80,6 +80,39 @@ the old profile with **Open** then **Save as** into a new JSON file (for example
 inside your personal ubuntu-config repository). Once you have verified that
 copy, disable the older service yourself and run this installer again.
 
+## Install from a package
+
+`scripts/package.sh` builds a reproducible tarball, and a `.deb` when
+`dpkg-deb` is available, under `dist/`. Neither package vendors the official
+SDK: it is always fetched separately by `install.sh`, as documented above.
+
+### Tarball
+
+```sh
+tar -xzf mirabox-stream-dock-293s-v3-VERSION.tar.gz
+cd mirabox-stream-dock-293s-v3-VERSION
+sha256sum -c mirabox-stream-dock-293s-v3-VERSION.tar.gz.sha256   # optional, verify integrity
+./install.sh
+```
+
+### .deb
+
+```sh
+sha256sum -c mirabox-stream-dock-293s-v3_VERSION_all.deb.sha256   # optional, verify integrity
+sudo dpkg -i mirabox-stream-dock-293s-v3_VERSION_all.deb
+```
+
+Installing the `.deb` needs `sudo` only to place files under
+`/usr/share/mirabox-stream-dock-293s-v3`. It deliberately does not run
+`install.sh` for you: the actual per-user setup (Python venv, fetching the
+official SDK, enabling the `systemd --user` service) must run as your own
+user, never as root. After installing the `.deb`, finish the setup by running,
+as your normal user:
+
+```sh
+/usr/share/mirabox-stream-dock-293s-v3/install.sh
+```
+
 ## Use the editor
 
 1. Use **Open** to load a profile or **Save as** to choose its location. A
@@ -115,6 +148,44 @@ tail -f ~/.local/state/mirabox-stream-dock-293s-v3/daemon.log
 
 If the service says it cannot find one device, reconnect the dock and verify
 that the udev rule was installed. This project expects one connected 293S V3.
+
+### Screen turns off when you press a key after a reconnect
+
+This dock does not notify the daemon when it is unplugged and replugged, so a
+running daemon can be left holding a stale handle to a device that no longer
+exists. Until something re-opens the dock, its own firmware can toggle the
+screen off on a keypress instead of running your action. Restart the bridge
+after reconnecting the dock:
+
+```sh
+systemctl --user restart mirabox-stream-dock-293s-v3.service
+```
+
+Using **Save and apply** in the editor does this restart for you.
+
+### Key icons are missing or only flash while a key is held
+
+Both are fixed in this version, but are documented here in case you are
+running an older copy of `app/daemon.py` or hit a similar issue on a
+different Mirabox model:
+
+- **All 15 key icons missing, only the 3 right-side displays work**: the
+  bridge must call the official SDK's `device.init()` before drawing
+  anything. `init()` does more than `set_device()` + `wakeScreen()` +
+  `set_brightness()`; it also runs `clearAllIcon()` and an initial
+  `refresh()`. Skipping `clearAllIcon()` leaves the 15-key image pipeline in
+  a state where new key images are silently ignored, while the independent
+  side-display pipeline keeps working — matching commands that still fire
+  with no icon ever appearing.
+- **Icons flash briefly then disappear, and only the last few keys (11-15)
+  ever stick**: this dock's firmware cannot absorb ~18 back-to-back key-image
+  writes with no pause; earlier writes get silently dropped while only the
+  last ones (closest to the final `refresh()`) sometimes land. The fix is a
+  short `time.sleep()` (`KEY_WRITE_DELAY` in `app/daemon.py`) after every
+  single `set_key_image()` call, on every full-page redraw and on the
+  periodic right-side refresh alike.
+
+See `CHANGELOG.md` for exactly what changed.
 
 ## License and SDK
 

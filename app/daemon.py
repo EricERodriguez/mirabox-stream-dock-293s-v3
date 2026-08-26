@@ -128,20 +128,34 @@ def main() -> int:
     signal.signal(signal.SIGTERM, stop)
 
     try:
-        device.set_device()
-        device.wakeScreen()
-        device.set_brightness(100)
+        # device.init() (not just set_device()/wakeScreen()/set_brightness()) is what
+        # the official SDK's own reference program calls before pushing any key image:
+        # it also clears every key slot (clearAllIcon()) and refreshes once. Skipping
+        # clearAllIcon() left the 15-key grid's image pipeline in a state where new key
+        # images were silently ignored, while the independent side-display/background
+        # paths kept working -- exactly the reported symptom (commands fire, icons don't).
+        device.init()
+        time.sleep(2)
         side = profile.get("side_displays", {})
         cpu, snapshot = read_cpu_percent(None)
         page_index = 0
         actions: dict[int, str] = {}
         roles: dict[int, str] = {}
+        redraw_pending = False
+
+        # This dock's own firmware appears to need real time to absorb each key
+        # image over HID: sending all ~18 images back-to-back with no pause left
+        # only the last few keys processed (11-15) showing an icon, with the rest
+        # silently dropped. A short pause after every write gives it time to
+        # actually commit each tile before the next one arrives.
+        KEY_WRITE_DELAY = 0.15
 
         def draw_page() -> None:
             nonlocal actions, roles
             page = profile["pages"][page_index]
             background = Path(str(page.get("background_image", ""))).expanduser()
             device.set_touchscreen_image(str(background if background.is_file() else render_blank_background()))
+            time.sleep(KEY_WRITE_DELAY)
             actions, roles = {}, {}
             for position in POSITIONS:
                 definition = page["keys"][position]
@@ -150,6 +164,7 @@ def main() -> int:
                 label = str(definition.get("label", f"Key {key}"))
                 icon = Path(str(definition.get("icon", ""))).expanduser()
                 device.set_key_image(key, str(icon if icon.is_file() else render_key(key, label)))
+                time.sleep(KEY_WRITE_DELAY)
                 role = str(definition.get("role", ""))
                 if role in ("previous", "next"):
                     roles[key] = role
@@ -159,23 +174,31 @@ def main() -> int:
                         actions[key] = command
             for key in SIDE_KEYS:
                 device.set_key_image(key, str(render_side(key, side.get(str(key), {}), cpu)))
+                time.sleep(KEY_WRITE_DELAY)
             device.refresh()
 
         draw_page()
 
         def on_key(_device, event) -> None:
+            # The official SDK fires this callback from its own HID reader thread and
+            # documents that the callback must be thread-safe. Pushing 15+ key images
+            # from that thread races the SDK's shared "Temporary.jpg" transfer file and
+            # leaves keys blank, even though this function's own bookkeeping (page_index,
+            # actions, roles) is unaffected. So this callback only flags a redraw; the
+            # actual device image writes happen on the main thread below, exactly like
+            # the initial draw_page() call at startup that always renders correctly.
             if event.event_type == EventType.BUTTON and event.state == 1 and event.key:
-                nonlocal page_index
+                nonlocal page_index, redraw_pending
                 key = event.key.value
                 role = roles.get(key)
                 if role == "previous":
                     page_index = (page_index - 1) % len(profile["pages"])
-                    draw_page()
+                    redraw_pending = True
                     logging.info("switched to page %s via previous navigation", page_index + 1)
                     return
                 if role == "next":
                     page_index = (page_index + 1) % len(profile["pages"])
-                    draw_page()
+                    redraw_pending = True
                     logging.info("switched to page %s via next navigation", page_index + 1)
                     return
                 command = actions.get(key)
@@ -186,10 +209,14 @@ def main() -> int:
         logging.info("ready: %s page(s), 3 right-side displays, profile %s on %s", len(profile["pages"]), profile_path, device.path)
         next_refresh = time.monotonic() + 5
         while not stopping:
+            if redraw_pending:
+                redraw_pending = False
+                draw_page()
             if time.monotonic() >= next_refresh:
                 cpu, snapshot = read_cpu_percent(snapshot)
                 for key in SIDE_KEYS:
                     device.set_key_image(key, str(render_side(key, side.get(str(key), {}), cpu)))
+                    time.sleep(KEY_WRITE_DELAY)
                 next_refresh = time.monotonic() + 5
             time.sleep(0.2)
     finally:
