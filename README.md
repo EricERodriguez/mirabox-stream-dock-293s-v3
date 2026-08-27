@@ -205,6 +205,12 @@ Mirabox model:
   short `time.sleep()` (`KEY_WRITE_DELAY` in `app/daemon/device.py`) after
   every single `set_key_image()` call, on every full-page redraw and on the
   periodic right-side refresh alike.
+- **Setting a page background makes the first few keys lose their icon**:
+  the 854×480 background is a much bigger transfer than a key image, and a
+  real photo takes longer to absorb than `KEY_WRITE_DELAY` accounts for; the
+  key-image writes right after it landed while the device was still busy
+  and got dropped. Fixed with a separate, longer
+  `BACKGROUND_WRITE_DELAY` after `set_touchscreen_image()`.
 
 ### "Open…" or a "Choose…" button does nothing, or occasionally crashes the editor
 

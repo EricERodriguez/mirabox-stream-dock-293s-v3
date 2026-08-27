@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.2
+
+- **Fix: setting a real page background made keys 1-6 lose their icon.**
+  The 854×480 background is a far larger HID transfer than a 96×96/80×80
+  key image; the fixed `render_blank_background()` fallback (a small,
+  near-solid-color JPEG) absorbed fast enough that this never showed up,
+  but a real photo/background took long enough to transfer that the
+  following key-image writes landed while the device was still busy with
+  it, and got silently dropped -- the same class of bug `KEY_WRITE_DELAY`
+  exists to prevent, just for a much bigger payload. Added a separate,
+  longer `BACKGROUND_WRITE_DELAY` (1.5s) after `set_touchscreen_image()`,
+  in `app/daemon/device.py`.
+
 ## 1.1.1
 
 - **Fix: "Open…" and the inspector's "Choose…" buttons did nothing, and

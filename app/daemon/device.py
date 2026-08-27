@@ -18,6 +18,15 @@ from StreamDock.DeviceManager import DeviceManager
 # actually commit each tile before the next one arrives.
 KEY_WRITE_DELAY = 0.15
 
+# The 854x480 background is a much larger transfer than a 96x96/80x80 key
+# image -- large enough that a real (non-solid-color) photo take noticeably
+# longer to absorb than KEY_WRITE_DELAY accounts for. When that transfer was
+# still busy, the device silently dropped the following key-image writes
+# (keys 1-6 went blank while a background was set, matching the same
+# silent-drop behavior KEY_WRITE_DELAY exists to avoid). Give the background
+# write its own, much longer settle time before anything else is sent.
+BACKGROUND_WRITE_DELAY = 1.5
+
 
 class DeviceConnection:
     """Owns the one open handle to the dock and paces every image write."""
@@ -46,7 +55,7 @@ class DeviceConnection:
 
     def set_touchscreen_image(self, path: str) -> None:
         self._device.set_touchscreen_image(path)
-        time.sleep(KEY_WRITE_DELAY)
+        time.sleep(BACKGROUND_WRITE_DELAY)
 
     def set_key_image(self, key: int, path: str) -> None:
         self._device.set_key_image(key, path)
