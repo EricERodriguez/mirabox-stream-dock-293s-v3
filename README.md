@@ -42,6 +42,27 @@ firmware.
 - Runs as a user service, so actions keep working after logging in.
 - Uses the official Mirabox SDK for all device operations.
 
+## Project layout
+
+```
+app/
+  profile_store.py        Profile schema, migration, load/save, active-profile settings.
+  daemon/                 The official-SDK bridge (installed as a systemd --user service).
+    device.py               DeviceConnection: the one HID handle, with per-write pacing baked in.
+    rendering.py            Pure image generation for keys/side displays/background, /proc readers.
+    page_controller.py      PageController: page state, redraws, and reacting to key presses.
+    __main__.py              Entrypoint (`python -m daemon`); wires the above together.
+  editor/                 The GTK4 configuration editor.
+    editor_controller.py    EditorState: profile state and editing rules, no GTK involved.
+    main_window.py           The window: builds every widget and wires it to EditorState.
+    key_widgets.py           Builds a key button's content (icon thumbnail vs. number/label).
+    styles.py                The editor's CSS.
+    app.py                   The Gtk.Application; __main__.py runs it as `python -m editor`.
+```
+
+Both `daemon` and `editor` are run with `app/` as the working directory, so
+they can import the sibling `profile_store` module directly.
+
 ## Requirements
 
 - Linux with a graphical GTK4 session.
@@ -166,8 +187,8 @@ Using **Save and apply** in the editor does this restart for you.
 ### Key icons are missing or only flash while a key is held
 
 Both are fixed in this version, but are documented here in case you are
-running an older copy of `app/daemon.py` or hit a similar issue on a
-different Mirabox model:
+running an older copy of the daemon or hit a similar issue on a different
+Mirabox model:
 
 - **All 15 key icons missing, only the 3 right-side displays work**: the
   bridge must call the official SDK's `device.init()` before drawing
@@ -181,8 +202,8 @@ different Mirabox model:
   ever stick**: this dock's firmware cannot absorb ~18 back-to-back key-image
   writes with no pause; earlier writes get silently dropped while only the
   last ones (closest to the final `refresh()`) sometimes land. The fix is a
-  short `time.sleep()` (`KEY_WRITE_DELAY` in `app/daemon.py`) after every
-  single `set_key_image()` call, on every full-page redraw and on the
+  short `time.sleep()` (`KEY_WRITE_DELAY` in `app/daemon/device.py`) after
+  every single `set_key_image()` call, on every full-page redraw and on the
   periodic right-side refresh alike.
 
 See `CHANGELOG.md` for exactly what changed.

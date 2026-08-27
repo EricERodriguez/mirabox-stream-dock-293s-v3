@@ -5,7 +5,8 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=@APP_HOME@/venv/bin/python @APP_HOME@/app/daemon.py
+WorkingDirectory=@APP_HOME@/app
+ExecStart=@APP_HOME@/venv/bin/python -m daemon
 Restart=on-failure
 RestartSec=2
 

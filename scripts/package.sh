@@ -32,7 +32,7 @@ fi
 
 # ---------------------------------------------------------------------------
 log "Validando sintaxis Python"
-python3 -m py_compile "$repo_root"/app/*.py
+python3 -m py_compile "$repo_root"/app/*.py "$repo_root"/app/daemon/*.py "$repo_root"/app/editor/*.py
 echo "OK: app/*.py compila"
 
 log "Validando sintaxis Bash"
@@ -72,11 +72,13 @@ mkdir -p "$dist_dir"
 
 stage="$work_dir/$name-$version"
 mkdir -p "$stage"
-install -d "$stage/app" "$stage/assets"
-install -m 0755 "$repo_root/app/daemon.py" "$repo_root/app/editor.py" "$repo_root/app/launch-editor.sh" "$stage/app/"
+install -d "$stage/app/daemon" "$stage/app/editor" "$stage/assets"
+install -m 0755 "$repo_root/app/launch-editor.sh" "$stage/app/"
 install -m 0644 "$repo_root/app/profile_store.py" "$repo_root/app/mirabox-stream-dock-293s-v3.service" \
   "$repo_root/app/mirabox-stream-dock-293s-v3.desktop" "$repo_root/app/70-mirabox-stream-dock-293s-v3.rules" \
   "$stage/app/"
+install -m 0644 "$repo_root"/app/daemon/*.py "$stage/app/daemon/"
+install -m 0644 "$repo_root"/app/editor/*.py "$stage/app/editor/"
 install -m 0644 "$repo_root/assets/mirabox-stream-dock-293s-v3.svg" "$stage/assets/"
 install -m 0644 "$repo_root/profile.default.json" "$repo_root/README.md" "$repo_root/LICENSE" "$repo_root/CHANGELOG.md" "$repo_root/VERSION" "$stage/"
 install -m 0755 "$repo_root/install.sh" "$stage/"
@@ -194,15 +196,17 @@ echo "El servicio real ($name.service) del usuario no fue tocado por esta prueba
 # ---------------------------------------------------------------------------
 if [[ -n "${DISPLAY:-}" ]]; then
   log "Verificando que el .desktop abre la app y usa el icono SVG (lanzamiento real)"
-  # GtkApplication is single-instance per application ID: any editor.py already
+  # GtkApplication is single-instance per application ID: any editor already
   # running (e.g. the real installed app open for the user) would otherwise
   # just absorb this activation instead of opening a fresh staging window.
-  running_before="$(pgrep -f 'app/editor\.py' || true)"
+  # The editor now runs as "python -m editor" (WorkingDirectory=.../app), so
+  # the venv's own python path is what makes a process match uniquely.
+  running_before="$(pgrep -f 'venv/bin/python -m editor' || true)"
   if [[ -n "$running_before" ]]; then
     echo "Cerrando temporalmente instancia(s) del editor ya abiertas para aislar la prueba: $running_before"
     kill -9 $running_before 2>/dev/null || true
     for _ in $(seq 1 5); do
-      pgrep -f 'app/editor\.py' >/dev/null || break
+      pgrep -f 'venv/bin/python -m editor' >/dev/null || break
       sleep 1
     done
   fi
@@ -212,8 +216,9 @@ if [[ -n "${DISPLAY:-}" ]]; then
     "$staging_home/.local/share/$name/launch-editor.sh" >"$launch_log" 2>&1 &
   disown
   launched=0
+  editor_pattern="$staging_home/.local/share/$name/venv/bin/python -m editor"
   for _ in $(seq 1 10); do
-    if pgrep -f "$staging_home/.local/share/$name/app/editor.py" >/dev/null; then
+    if pgrep -f "$editor_pattern" >/dev/null; then
       launched=1
       break
     fi
@@ -221,7 +226,7 @@ if [[ -n "${DISPLAY:-}" ]]; then
   done
   if [[ "$launched" == "1" ]]; then
     echo "OK: la app instalada desde el staging abrió una ventana real"
-    pkill -f "$staging_home/.local/share/$name/app/editor.py" || true
+    pkill -f "$editor_pattern" || true
   else
     echo "AVISO: no se pudo confirmar el lanzamiento gráfico; salida de launch-editor.sh:" >&2
     cat "$launch_log" >&2 || true

@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.1.0
+
+Internal architecture refactor. No functional change: the same
+`device.init()` sequence, `KEY_WRITE_DELAY` pacing, and main-thread-only
+redraw from 1.0.1 are preserved exactly, just reorganized. Verified against
+the real, physical dock (single-page and two-page profiles, `Save and
+apply`) after the move, not just by re-running the test suite.
+
+- `app/daemon.py` split into the `app/daemon/` package: `device.py`
+  (`DeviceConnection`, owns the one HID handle and the write pacing),
+  `rendering.py` (pure key/side/background image generation, `/proc`
+  readers), `page_controller.py` (`PageController`: page state, redraws,
+  reacting to key presses), and `__main__.py` (entrypoint). Run as
+  `python -m daemon` with `app/` as the working directory.
+- `app/editor.py` split into the `app/editor/` package: `editor_controller.py`
+  (`EditorState`: profile state and editing rules, no GTK import),
+  `main_window.py` (the window: widget tree, wired to `EditorState`),
+  `key_widgets.py` (builds a key button's content — icon thumbnail vs.
+  number/label), `styles.py` (the CSS), and `app.py` (the thin
+  `Gtk.Application`). Run as `python -m editor`.
+- `install.sh`, `scripts/package.sh`, the systemd unit (now sets
+  `WorkingDirectory` and calls `python -m daemon`), and `launch-editor.sh`
+  (now calls `python -m editor`) updated for the new package layout.
+- No profile schema change; existing profiles keep working unmodified.
+
 ## 1.0.1
 
 Fixes for real hardware behavior found while migrating a working personal

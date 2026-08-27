@@ -16,9 +16,11 @@ if systemctl --user is-active --quiet streamdock-mirabox-293s-v3.service; then
   exit 2
 fi
 
-install -d "$app_home/app" "$app_home/assets" "$config_home" "$HOME/.config/systemd/user" "$HOME/.local/share/applications"
+install -d "$app_home/app/daemon" "$app_home/app/editor" "$app_home/assets" "$config_home" "$HOME/.config/systemd/user" "$HOME/.local/share/applications"
 install -m 0644 "$repo_root/profile.default.json" "$app_home/profile.default.json"
-install -m 0644 "$repo_root/app/daemon.py" "$repo_root/app/editor.py" "$repo_root/app/profile_store.py" "$app_home/app/"
+install -m 0644 "$repo_root/app/profile_store.py" "$app_home/app/"
+install -m 0644 "$repo_root"/app/daemon/*.py "$app_home/app/daemon/"
+install -m 0644 "$repo_root"/app/editor/*.py "$app_home/app/editor/"
 install -m 0755 "$repo_root/app/launch-editor.sh" "$app_home/launch-editor.sh"
 install -m 0644 "$repo_root/assets/mirabox-stream-dock-293s-v3.svg" "$app_home/assets/mirabox-stream-dock-293s-v3.svg"
 
