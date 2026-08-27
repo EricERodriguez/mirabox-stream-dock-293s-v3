@@ -206,6 +206,17 @@ Mirabox model:
   every single `set_key_image()` call, on every full-page redraw and on the
   periodic right-side refresh alike.
 
+### "Open…" or a "Choose…" button does nothing, or occasionally crashes the editor
+
+Fixed in this version. `Gtk.FileChooserNative` is not kept alive by GTK on
+its own once the function that created it returns; PyGObject can garbage
+collect it while the native (portal) dialog is still opening, which showed
+up as the dialog silently never appearing (spamming `Gtk-CRITICAL
+**: thaw_updates: assertion 'GTK_IS_FILE_SYSTEM_MODEL (model)' failed` in
+the terminal) or, less predictably, crashing the process outright. The
+window now keeps an explicit reference (`self._active_dialog`) for as long
+as the dialog is open.
+
 See `CHANGELOG.md` for exactly what changed.
 
 ## License and SDK

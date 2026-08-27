@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.1
+
+- **Fix: "Open…" and the inspector's "Choose…" buttons did nothing, and
+  sometimes crashed the editor.** Each `Gtk.FileChooserNative` was a local
+  variable in the method that created it; nothing else kept it referenced,
+  so PyGObject could garbage-collect the dialog while the portal-backed
+  native dialog was still being set up. Observed as either the dialog never
+  appearing (with `Gtk-CRITICAL **: thaw_updates: assertion
+  'GTK_IS_FILE_SYSTEM_MODEL (model)' failed` spamming the terminal) or an
+  outright crash with no traceback. `MainWindow` now stores the open dialog
+  in `self._active_dialog` until its response handler destroys it.
+
 ## 1.1.0
 
 Internal architecture refactor. No functional change: the same

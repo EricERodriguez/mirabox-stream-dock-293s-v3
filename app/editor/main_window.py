@@ -28,6 +28,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.key_buttons: dict[str, Gtk.Button] = {}
         self.side_modes: dict[str, Gtk.DropDown] = {}
         self.side_texts: dict[str, Gtk.Entry] = {}
+        self._active_dialog: Gtk.FileChooserNative | None = None
 
         self._install_css()
         self.set_default_size(1220, 790)
@@ -274,6 +275,10 @@ class MainWindow(Gtk.ApplicationWindow):
         self._choose_file("Choose 854 × 480 background", self._background_chosen)
 
     def _choose_file(self, title: str, response_handler) -> None:
+        # Gtk.FileChooserNative must stay referenced for as long as it is open:
+        # PyGObject does not otherwise keep the wrapper alive once this method
+        # returns, and the GC collecting it mid-dialog is what made these
+        # buttons appear to do nothing (or crash) -- see self._active_dialog.
         dialog = Gtk.FileChooserNative.new(title, self, Gtk.FileChooserAction.OPEN, "Choose", "Cancel")
         image_filter = Gtk.FileFilter()
         image_filter.set_name("Images (PNG, JPEG)")
@@ -281,6 +286,7 @@ class MainWindow(Gtk.ApplicationWindow):
         image_filter.add_mime_type("image/jpeg")
         dialog.add_filter(image_filter)
         dialog.connect("response", response_handler)
+        self._active_dialog = dialog
         dialog.show()
 
     def _icon_chosen(self, dialog: Gtk.FileChooserNative, response: int) -> None:
@@ -290,6 +296,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 self.icon_entry.set_text(path)
                 self.state.set_key_icon(path)
                 self._refresh_key_buttons()
+        self._active_dialog = None
         dialog.destroy()
 
     def _background_chosen(self, dialog: Gtk.FileChooserNative, response: int) -> None:
@@ -297,6 +304,7 @@ class MainWindow(Gtk.ApplicationWindow):
             path = dialog.get_file().get_path()
             if path:
                 self.background_entry.set_text(path)
+        self._active_dialog = None
         dialog.destroy()
 
     def _open_profile(self, _button: Gtk.Button) -> None:
@@ -306,6 +314,7 @@ class MainWindow(Gtk.ApplicationWindow):
         profile_filter.add_pattern("*.json")
         dialog.add_filter(profile_filter)
         dialog.connect("response", self._profile_opened)
+        self._active_dialog = dialog
         dialog.show()
 
     def _profile_opened(self, dialog: Gtk.FileChooserNative, response: int) -> None:
@@ -322,12 +331,14 @@ class MainWindow(Gtk.ApplicationWindow):
                 except (OSError, ValueError, KeyError) as error:
                     self.status.set_label(f"Could not open that profile: {error}")
                     self.status.set_css_classes(["status-error"])
+        self._active_dialog = None
         dialog.destroy()
 
     def _save_as(self, _button: Gtk.Button) -> None:
         dialog = Gtk.FileChooserNative.new("Save Stream Dock profile as", self, Gtk.FileChooserAction.SAVE, "Save", "Cancel")
         dialog.set_current_name("stream-dock-profile.json")
         dialog.connect("response", self._profile_saved_as)
+        self._active_dialog = dialog
         dialog.show()
 
     def _profile_saved_as(self, dialog: Gtk.FileChooserNative, response: int) -> None:
@@ -335,6 +346,7 @@ class MainWindow(Gtk.ApplicationWindow):
             chosen = dialog.get_file().get_path()
             if chosen:
                 if not self._store_current_key():
+                    self._active_dialog = None
                     dialog.destroy()
                     return
                 self._store_side_displays()
@@ -342,6 +354,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 self._refresh_profile_label()
                 self.status.set_label("Profile saved at the selected location.")
                 self.status.set_css_classes(["status-ok"])
+        self._active_dialog = None
         dialog.destroy()
 
     def _refresh_profile_label(self) -> None:
