@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.1
+
+- **Tuned: page redraws are now noticeably faster.** `KEY_WRITE_DELAY`
+  (`app/daemon/device.py`) found stable at `0` (down from `0.15`) and
+  `BACKGROUND_WRITE_DELAY` at `1.4` (down from `1.5`), through human-in-the-
+  loop testing directly on the dock: values in between (`0.08`-`0.135` for
+  the key delay) failed non-monotonically, and reduced background delays
+  (as low as `0.2`) initially looked fine on a quick check but caused a
+  *delayed* failure -- keys rendering correctly at first, then silently
+  reverting to blank ~15-20s later, affecting every page (not just ones
+  with a real background, since the blank-background fallback goes through
+  the same device call). `1.4` held up across several rounds of deliberately
+  waiting out that delay before accepting a value. See the comments in
+  `app/daemon/device.py` for the full account, including why re-verification
+  with the same rigor is needed if this ever needs revisiting.
+
 ## 1.2.0
 
 - **Added: "Use this background on every page" checkbox.** Backgrounds were
