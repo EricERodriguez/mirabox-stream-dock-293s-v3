@@ -50,7 +50,7 @@ class EditorState:
         self.page_index = min(self.page_index, len(self.profile["pages"]) - 1)
         return True
 
-    def store_current_key(self, label: str, command: str, icon: str, background: str, shared_background: bool) -> bool:
+    def store_current_key(self, label: str, command: str, icon: str, opacity: int, background: str, shared_background: bool) -> bool:
         """Validate and persist the inspector's fields for the selected key.
 
         Returns False (and stores nothing) when the label is empty -- a key
@@ -64,6 +64,7 @@ class EditorState:
         if definition.get("role") not in ("previous", "next"):
             definition["command"] = command.strip()
         definition["icon"] = icon.strip()
+        definition["opacity"] = max(0, min(100, int(opacity)))
         self.profile["shared_background"] = shared_background
         if shared_background:
             self.profile["background_image"] = background.strip()
@@ -86,6 +87,9 @@ class EditorState:
 
     def set_key_icon(self, path: str) -> None:
         self.key_definition()["icon"] = path
+
+    def set_key_opacity(self, opacity: int) -> None:
+        self.key_definition()["opacity"] = max(0, min(100, int(opacity)))
 
     def open_profile(self, path: Path) -> None:
         """May raise OSError/ValueError/KeyError for an unreadable or invalid file."""

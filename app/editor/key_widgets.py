@@ -22,6 +22,7 @@ def build_key_content(definition: dict, number: int) -> Gtk.Widget:
         image = Gtk.Image.new_from_file(str(icon))
         image.set_pixel_size(42)
         image.add_css_class("thumbnail")
+        image.set_opacity(max(0, min(100, int(definition.get("opacity", 100)))) / 100)
         content.append(image)
     else:
         content.append(Gtk.Label(label=str(number), css_classes=["key-number"]))

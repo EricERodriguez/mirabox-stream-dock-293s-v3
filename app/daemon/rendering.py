@@ -30,7 +30,12 @@ def centered(draw: ImageDraw.ImageDraw, image: Image.Image, text: str, y: int, t
     draw.text(((image.width - (box[2] - box[0])) / 2, y), text, font=text_font, fill=fill)
 
 
-def render_key(number: int, label: str) -> Path:
+def key_tile(number: int, label: str) -> Image.Image:
+    """The generated tile a key shows when it has no icon: rounded border,
+    physical number, label. Also the "background" an icon fades toward as
+    its opacity drops, so lowering opacity reveals this instead of a flat
+    color -- exactly what the key would look like with the icon removed.
+    """
     image = Image.new("RGB", (96, 96), "#0f172a")
     draw = ImageDraw.Draw(image)
     draw.rounded_rectangle((2, 2, 93, 93), radius=12, outline="#334155", width=2)
@@ -41,8 +46,12 @@ def render_key(number: int, label: str) -> Path:
     centered(draw, image, lines[0][:12], y, font(15, bold=True), "#f8fafc")
     if lines[1]:
         centered(draw, image, lines[1][:12], y + 19, font(12), "#cbd5e1")
+    return image
+
+
+def render_key(number: int, label: str) -> Path:
     target = STATE_HOME / f"key-{number}.png"
-    image.save(target)
+    key_tile(number, label).save(target)
     return target
 
 
@@ -84,6 +93,38 @@ def render_side(key: int, spec: dict, cpu: float) -> Path:
     centered(draw, image, caption, 53, font(11), "#7dd3fc")
     target = STATE_HOME / f"side-{key}.png"
     image.save(target)
+    return target
+
+
+def crop_background(background: Image.Image, position: str) -> Image.Image:
+    """The slice of the real touchscreen background that sits behind one
+    key, assuming the 5x3 key grid tiles the full 854x480 panel edge to
+    edge with no margins -- the 293S V3's keys and background live on the
+    same touch panel, confirmed against the physical dock, but the exact
+    per-key pixel offset isn't documented by the SDK, so this is a best
+    guess: re-check alignment on the real hardware and adjust here if the
+    revealed slice doesn't line up with what is actually behind the key.
+    """
+    x, y = (int(value) for value in position.split("x", maxsplit=1))
+    cell_w, cell_h = background.width / 5, background.height / 3
+    box = (round(x * cell_w), round(y * cell_h), round((x + 1) * cell_w), round((y + 1) * cell_h))
+    return background.crop(box).resize((96, 96))
+
+
+def render_icon(number: int, position: str, icon: Path, opacity: int, background: Image.Image) -> Path:
+    """Fade ``icon`` toward the slice of the real touchscreen background
+    behind this key, so lowering opacity reveals the dock's actual
+    wallpaper there instead of a flat color or a generated tile.
+
+    Only called when opacity < 100 -- at full opacity the icon file is sent
+    to the device unchanged, exactly like before this existed.
+    """
+    backdrop = crop_background(background, position)
+    source = Image.open(icon).convert("RGBA").resize(backdrop.size)
+    flattened = Image.alpha_composite(backdrop.convert("RGBA"), source).convert("RGB")
+    faded = Image.blend(backdrop.convert("RGB"), flattened, max(0.0, min(100, opacity)) / 100)
+    target = STATE_HOME / f"key-{number}-icon.png"
+    faded.save(target)
     return target
 
 

@@ -171,6 +171,17 @@ class MainWindow(Gtk.ApplicationWindow):
         icon_row.append(choose_icon)
         card.append(icon_row)
         card.append(Gtk.Label(label="Images are shown in the editor. Use 96 × 96 px for best results; larger PNG/JPEG files are resized by the official SDK.", xalign=0, wrap=True, css_classes=["muted"]))
+        opacity_row = Gtk.Box(spacing=8)
+        opacity_row.append(Gtk.Label(label="Icon opacity", xalign=0, css_classes=["heading"]))
+        opacity_row.append(Gtk.Box(hexpand=True))
+        self.opacity_value_label = Gtk.Label(label="100%", css_classes=["muted"])
+        opacity_row.append(self.opacity_value_label)
+        card.append(opacity_row)
+        self.opacity_scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=Gtk.Adjustment(value=100, lower=0, upper=100, step_increment=1))
+        self.opacity_scale.set_digits(0)
+        self.opacity_scale.set_draw_value(False)
+        self.opacity_scale.connect("value-changed", self._opacity_changed)
+        card.append(self.opacity_scale)
         box.append(card)
 
         background = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=9, css_classes=["inspector-card"])
@@ -230,6 +241,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.label_entry.set_text(definition.get("label", ""))
         self.command_entry.set_text(definition.get("command", ""))
         self.icon_entry.set_text(definition.get("icon", ""))
+        self.opacity_scale.set_value(int(definition.get("opacity", 100)))
+        self.opacity_value_label.set_label(f"{int(definition.get('opacity', 100))}%")
         self.background_entry.set_text(self.state.background_text())
         self.shared_background_check.set_active(self.state.is_shared_background())
         if definition.get("role") in ("previous", "next"):
@@ -240,11 +253,18 @@ class MainWindow(Gtk.ApplicationWindow):
             self.command_help.set_label("Leave Command empty to display a key without an action.")
         self._refresh_key_buttons()
 
+    def _opacity_changed(self, scale: Gtk.Scale) -> None:
+        value = int(scale.get_value())
+        self.opacity_value_label.set_label(f"{value}%")
+        self.state.set_key_opacity(value)
+        self._refresh_key_buttons()
+
     def _store_current_key(self) -> bool:
         ok = self.state.store_current_key(
             self.label_entry.get_text(),
             self.command_entry.get_text(),
             self.icon_entry.get_text(),
+            int(self.opacity_scale.get_value()),
             self.background_entry.get_text(),
             self.shared_background_check.get_active(),
         )

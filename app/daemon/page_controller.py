@@ -8,12 +8,25 @@ import logging
 import subprocess
 from pathlib import Path
 
+from PIL import Image
 from StreamDock.InputTypes import EventType
 
 from profile_store import POSITIONS, active_background
 
 from .device import DeviceConnection
-from .rendering import SIDE_KEYS, render_blank_background, render_key, render_side
+from .rendering import SIDE_KEYS, render_blank_background, render_icon, render_key, render_side
+
+
+def key_image(key: int, position: str, label: str, definition: dict, background: Image.Image) -> Path:
+    """The image to push for one key: its icon (faded toward the real
+    touchscreen background behind it if opacity < 100), or the generated
+    fallback tile when it has none.
+    """
+    icon = Path(str(definition.get("icon", ""))).expanduser()
+    if not icon.is_file():
+        return render_key(key, label)
+    opacity = int(definition.get("opacity", 100))
+    return render_icon(key, position, icon, opacity, background) if opacity < 100 else icon
 
 
 def launch(command: str) -> None:
@@ -47,16 +60,17 @@ class PageController:
 
     def draw_page(self, cpu: float) -> None:
         page = self.profile["pages"][self.page_index]
-        background = Path(active_background(self.profile, page)).expanduser()
-        self.device.set_touchscreen_image(str(background if background.is_file() else render_blank_background()))
+        background_path = Path(active_background(self.profile, page)).expanduser()
+        background_file = background_path if background_path.is_file() else render_blank_background()
+        self.device.set_touchscreen_image(str(background_file))
+        background_image = Image.open(background_file).convert("RGB")
         self.actions, self.roles = {}, {}
         for position in POSITIONS:
             definition = page["keys"][position]
             x, y = (int(value) for value in position.split("x", maxsplit=1))
             key = y * 5 + x + 1
             label = str(definition.get("label", f"Key {key}"))
-            icon = Path(str(definition.get("icon", ""))).expanduser()
-            self.device.set_key_image(key, str(icon if icon.is_file() else render_key(key, label)))
+            self.device.set_key_image(key, str(key_image(key, position, label, definition, background_image)))
             role = str(definition.get("role", ""))
             if role in ("previous", "next"):
                 self.roles[key] = role

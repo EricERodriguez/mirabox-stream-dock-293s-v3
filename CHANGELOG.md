@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.3.0
+
+- **Added: per-key icon opacity.** Each key now has an `opacity` field
+  (0-100, default `100`) editable in the inspector via a new "Icon opacity"
+  slider, with a live-faded preview in the deck grid
+  (`app/editor/key_widgets.py` applies it as `Gtk.Widget.set_opacity()`).
+  On the 293S V3, the 15 keys and the 854x480 touchscreen background sit on
+  the same physical panel, so on the device side `app/daemon/rendering.
+  render_icon()` (only called when `opacity < 100`) fades the icon toward
+  `crop_background()` -- the actual slice of the page's real wallpaper that
+  sits behind that key -- instead of a flat color or a generated tile:
+  lowering opacity reveals the dock's real background there. The 5x3 grid
+  is assumed to tile the panel edge to edge with no margins (not documented
+  by the SDK, so worth re-checking alignment against the physical dock). A
+  key with no opacity set behaves exactly as before (its icon file is sent
+  unchanged).
+
 ## 1.2.1
 
 - **Tuned: page redraws are now noticeably faster.** `KEY_WRITE_DELAY`

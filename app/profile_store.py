@@ -19,7 +19,7 @@ NAVIGATION = {"0x2": ("previous", "Previous"), "4x2": ("next", "Next")}
 
 def _default_key(position: str) -> dict:
     number = POSITIONS.index(position) + 1
-    key = {"label": f"Key {number}", "command": "", "icon": ""}
+    key = {"label": f"Key {number}", "command": "", "icon": "", "opacity": 100}
     if position in NAVIGATION:
         role, label = NAVIGATION[position]
         key.update({"label": label, "role": role})
@@ -52,6 +52,7 @@ def normalise(profile: dict) -> dict:
             key.setdefault("label", _default_key(position)["label"])
             key.setdefault("command", "")
             key.setdefault("icon", "")
+            key.setdefault("opacity", 100)
             if position in NAVIGATION:
                 key.setdefault("role", NAVIGATION[position][0])
     displays = profile.setdefault("side_displays", {})
