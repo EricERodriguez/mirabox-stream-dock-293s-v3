@@ -182,7 +182,11 @@ class MainWindow(Gtk.ApplicationWindow):
         choose_background.connect("clicked", self._choose_background)
         background_row.append(choose_background)
         background.append(background_row)
-        background.append(Gtk.Label(label="This is the real 854 × 480 touchscreen background supported by the 293S V3 SDK. It applies to the current page when the dock changes page.", xalign=0, wrap=True, css_classes=["muted"]))
+        self.shared_background_check = Gtk.CheckButton(label="Use this background on every page")
+        self.shared_background_check.set_active(self.state.is_shared_background())
+        self.shared_background_check.connect("toggled", self._shared_background_toggled)
+        background.append(self.shared_background_check)
+        background.append(Gtk.Label(label="This is the real 854 × 480 touchscreen background supported by the 293S V3 SDK. It applies to the current page when the dock changes page, unless shared across every page above.", xalign=0, wrap=True, css_classes=["muted"]))
         box.append(background)
         note = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5, css_classes=["inspector-card"])
         note.append(Gtk.Label(label="Safe apply", xalign=0, css_classes=["heading"]))
@@ -226,7 +230,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.label_entry.set_text(definition.get("label", ""))
         self.command_entry.set_text(definition.get("command", ""))
         self.icon_entry.set_text(definition.get("icon", ""))
-        self.background_entry.set_text(self.state.page().get("background_image", ""))
+        self.background_entry.set_text(self.state.background_text())
+        self.shared_background_check.set_active(self.state.is_shared_background())
         if definition.get("role") in ("previous", "next"):
             self.command_entry.set_sensitive(False)
             self.command_help.set_label("This physical key changes dock pages. Its command is intentionally disabled.")
@@ -241,12 +246,25 @@ class MainWindow(Gtk.ApplicationWindow):
             self.command_entry.get_text(),
             self.icon_entry.get_text(),
             self.background_entry.get_text(),
+            self.shared_background_check.get_active(),
         )
         if not ok:
             self.status.set_label("A key needs a label so it remains identifiable.")
             self.status.set_css_classes(["status-error"])
             self.label_entry.grab_focus()
         return ok
+
+    def _shared_background_toggled(self, checkbox: Gtk.CheckButton) -> None:
+        # Persist whatever background path is currently typed into whichever
+        # mode was active *before* this toggle, so switching modes never
+        # silently discards an unsaved edit.
+        current_text = self.background_entry.get_text().strip()
+        if self.state.is_shared_background():
+            self.state.profile["background_image"] = current_text
+        else:
+            self.state.page()["background_image"] = current_text
+        self.state.profile["shared_background"] = checkbox.get_active()
+        self.background_entry.set_text(self.state.background_text())
 
     def _store_side_displays(self) -> None:
         self.state.store_side_displays({

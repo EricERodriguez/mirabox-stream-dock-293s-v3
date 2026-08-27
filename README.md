@@ -151,6 +151,8 @@ as your normal user:
    Their native size is **80 × 80 px**.
 6. Optionally choose a page background. The dock's supported LCD background is
    **854 × 480 px**; use a PNG or JPEG at exactly that size for no scaling.
+   Check **Use this background on every page** to share one background
+   across all pages instead of setting one per page.
 7. Choose **Save and apply**.
 
 The initial one-page schema is migrated when opened. If importing a profile

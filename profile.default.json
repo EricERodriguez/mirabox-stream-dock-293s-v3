@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "shared_background": false,
+  "background_image": "",
   "side_displays": {
     "16": { "mode": "clock", "text": "" },
     "17": { "mode": "cpu", "text": "" },

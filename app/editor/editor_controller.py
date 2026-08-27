@@ -50,7 +50,7 @@ class EditorState:
         self.page_index = min(self.page_index, len(self.profile["pages"]) - 1)
         return True
 
-    def store_current_key(self, label: str, command: str, icon: str, background: str) -> bool:
+    def store_current_key(self, label: str, command: str, icon: str, background: str, shared_background: bool) -> bool:
         """Validate and persist the inspector's fields for the selected key.
 
         Returns False (and stores nothing) when the label is empty -- a key
@@ -64,8 +64,21 @@ class EditorState:
         if definition.get("role") not in ("previous", "next"):
             definition["command"] = command.strip()
         definition["icon"] = icon.strip()
-        self.page()["background_image"] = background.strip()
+        self.profile["shared_background"] = shared_background
+        if shared_background:
+            self.profile["background_image"] = background.strip()
+        else:
+            self.page()["background_image"] = background.strip()
         return True
+
+    def is_shared_background(self) -> bool:
+        return bool(self.profile.get("shared_background"))
+
+    def background_text(self) -> str:
+        """What the background field should show for the current page."""
+        if self.is_shared_background():
+            return str(self.profile.get("background_image", ""))
+        return str(self.page().get("background_image", ""))
 
     def store_side_displays(self, values: dict[str, tuple[str, str]]) -> None:
         for key, (mode, text) in values.items():

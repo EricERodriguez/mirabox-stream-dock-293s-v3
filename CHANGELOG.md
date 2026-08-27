@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0
+
+- **Added: "Use this background on every page" checkbox.** Backgrounds were
+  strictly per-page; this new option shares one background across every page
+  of a profile instead. New profile fields: top-level `shared_background`
+  (bool) and `background_image` (the shared path), both defaulted by
+  `profile_store.normalise()` for old profiles. New
+  `profile_store.active_background(profile, page)` picks the right one
+  (shared vs. per-page) and is used by both `app/daemon/page_controller.py`
+  and the editor, so they can never disagree. In the editor
+  (`app/editor/editor_controller.py` / `main_window.py`), toggling the
+  checkbox persists whatever was typed into the mode you're leaving before
+  switching, so no edit is silently lost.
+
 ## 1.1.2
 
 - **Fix: setting a real page background made keys 1-6 lose their icon.**

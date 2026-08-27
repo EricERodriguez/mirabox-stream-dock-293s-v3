@@ -10,7 +10,7 @@ from pathlib import Path
 
 from StreamDock.InputTypes import EventType
 
-from profile_store import POSITIONS
+from profile_store import POSITIONS, active_background
 
 from .device import DeviceConnection
 from .rendering import SIDE_KEYS, render_blank_background, render_key, render_side
@@ -47,7 +47,7 @@ class PageController:
 
     def draw_page(self, cpu: float) -> None:
         page = self.profile["pages"][self.page_index]
-        background = Path(str(page.get("background_image", ""))).expanduser()
+        background = Path(active_background(self.profile, page)).expanduser()
         self.device.set_touchscreen_image(str(background if background.is_file() else render_blank_background()))
         self.actions, self.roles = {}, {}
         for position in POSITIONS:

@@ -59,8 +59,19 @@ def normalise(profile: dict) -> dict:
         displays.setdefault(key, {"mode": ("clock", "cpu", "ram")[index], "text": ""})
         displays[key].setdefault("mode", "text")
         displays[key].setdefault("text", "")
+    profile.setdefault("shared_background", False)
+    profile.setdefault("background_image", "")
     profile["version"] = 2
     return profile
+
+
+def active_background(profile: dict, page: dict) -> str:
+    """The background path that actually applies to ``page``: the profile-wide
+    one when "same background on every page" is on, otherwise the page's own.
+    """
+    if profile.get("shared_background"):
+        return str(profile.get("background_image", ""))
+    return str(page.get("background_image", ""))
 
 
 def default_profile() -> dict:
