@@ -14,7 +14,7 @@ from StreamDock.InputTypes import EventType
 from profile_store import POSITIONS, active_background
 
 from .device import DeviceConnection
-from .rendering import SIDE_KEYS, render_blank_background, render_icon, render_key, render_side
+from .rendering import SIDE_KEYS, read_vpn_connected, render_blank_background, render_icon, render_key, render_side
 
 
 def key_image(key: int, position: str, label: str, definition: dict, background: Image.Image) -> Path:
@@ -82,8 +82,9 @@ class PageController:
         self.device.refresh()
 
     def refresh_side_displays(self, cpu: float) -> None:
+        vpn_connected = read_vpn_connected()
         for key in SIDE_KEYS:
-            self.device.set_key_image(key, str(render_side(key, self.side.get(str(key), {}), cpu)))
+            self.device.set_key_image(key, str(render_side(key, self.side.get(str(key), {}), cpu, vpn_connected)))
 
     def on_key(self, _device, event) -> None:
         if event.event_type != EventType.BUTTON or event.state != 1 or not event.key:

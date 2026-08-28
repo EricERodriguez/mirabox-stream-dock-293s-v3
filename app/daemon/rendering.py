@@ -8,6 +8,8 @@ files under STATE_HOME and returns their path.
 from __future__ import annotations
 
 import os
+import re
+import subprocess
 import time
 from pathlib import Path
 
@@ -73,6 +75,27 @@ def read_ram_percent() -> float:
     return 100 * (1 - values.get("MemAvailable", values["MemFree"]) / values["MemTotal"])
 
 
+def read_vpn_connected() -> bool:
+    """Best-effort detection of the ipsec-rentasweb tunnel, mirroring the
+    heuristic already trusted in ubuntu-config's yakuake system-hud.sh:
+    tunnel interfaces, VPN-assigned addresses, or routes for them. Skips the
+    sudo-gated `ipsec statusall` check that script also has, since this runs
+    unattended every refresh cycle.
+    """
+    def out(*args: str) -> str:
+        try:
+            return subprocess.run(args, capture_output=True, text=True, timeout=2).stdout
+        except Exception:
+            return ""
+
+    ip_addr = out("ip", "a")
+    if re.search(r"\b(tun0|wg0|ppp0|ipsec0)\b", ip_addr) or re.search(r"\b10\.(48|42)\.", ip_addr):
+        return True
+    if re.search(r"\b10\.(48|42)\.", out("ip", "route", "show", "table", "all")):
+        return True
+    return bool(out("ip", "xfrm", "state").strip())
+
+
 def side_text(spec: dict, cpu: float) -> tuple[str, str]:
     mode = spec.get("mode", "text")
     if mode == "clock":
@@ -84,10 +107,15 @@ def side_text(spec: dict, cpu: float) -> tuple[str, str]:
     return str(spec.get("text", "Display"))[:10] or "Display", "CUSTOM"
 
 
-def render_side(key: int, spec: dict, cpu: float) -> Path:
+def render_side(key: int, spec: dict, cpu: float, vpn_connected: bool) -> Path:
     image = Image.new("RGB", (80, 80), "#111827")
     draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((2, 2, 77, 77), radius=10, outline="#0ea5e9", width=2)
+    # The border doubles as an ambient VPN indicator across all three side
+    # displays -- there's no free fourth physical LCD to dedicate to it, so
+    # this folds the signal into the ones that already exist instead of
+    # displacing clock/CPU/RAM.
+    outline = "#22c55e" if vpn_connected else "#ef4444"
+    draw.rounded_rectangle((2, 2, 77, 77), radius=10, outline=outline, width=2)
     headline, caption = side_text(spec, cpu)
     centered(draw, image, headline, 20, font(23, bold=True), "#f8fafc")
     centered(draw, image, caption, 53, font(11), "#7dd3fc")
