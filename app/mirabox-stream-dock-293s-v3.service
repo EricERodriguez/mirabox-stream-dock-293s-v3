@@ -5,6 +5,12 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
+# DISPLAY isn't reliably imported into the systemd --user manager's
+# environment by session start -- it's a race against graphical-session.target,
+# and losing it silently breaks every X11 client the daemon launches
+# (gnome-terminal, xdotool) with no visible error. Single-seat desktop, so :0
+# is safe to pin outright rather than depend on import timing.
+Environment=DISPLAY=:0
 WorkingDirectory=@APP_HOME@/app
 ExecStart=@APP_HOME@/venv/bin/python -m daemon
 Restart=on-failure
